@@ -26,11 +26,6 @@ var GF = function () {
     inputStates.newGame = true; 
     
     // gamepad support
-    var gamepadControls = {
-        notDefined: 0,
-        button: 1,
-        axis: 2
-    };
     gamepad = [{
       connected: false,     // whether this gamepad is connected or not
       configured: false,    // if the config options have been presented
@@ -54,11 +49,6 @@ var GF = function () {
     }];
     var numGamepads = 0;
     var redisplayGamepads = false;    // set if there's a gamepad connected or disconnected, to redo gamepad controls section of the web page
-    var gamepadControls = {
-        notDefined: 0,
-        button: 1,
-        axis: 2
-    };
     var gamepadInputStates = [ {        // 2D array specifying the actions each gamepad user is taking
         inUse: false,
         fire: false,
@@ -897,7 +887,8 @@ var GF = function () {
     function updateGamepadConfig(navgamepads) {
       // sets up the html on the web page to enable the players to configure their gamepad buttons to use etc
       // this depends on how many buttons etc the connected gamepad supports 
-      for (var i=0; i < Math.max(navgamepads.length, 2); i++) {
+      //console.log("in updateGamepadConfig with ", navgamepads.length, " gamepads ", navgamepads);
+      for (var i=0; i < Math.min(navgamepads.length, 2); i++) {
         var selector1 = '#gamepad' + (i+1) + 'User';
         var selector2 = 'select[id^=g' + (i+1) + ']';   // for selecting the <option>s tags for this gamepad
         if (navgamepads[i] === undefined || navgamepads[i] === null || !navgamepads[i].connected) {
@@ -1189,15 +1180,15 @@ var GF = function () {
           console.log("gamepad1User event, value ", e.options[e.selectedIndex].value);
           if (e.options[e.selectedIndex].value == 'player1') {
             gamepad[0].playerIndex = 0;
+            // if player1 has been chosen to use this gamepad, then set mouse/keyboard to not used as the default 
+            // the users can override this, but that's their own look out.
+            $("#Player1mouse").attr("selected", "selected");
+            player1UsingMouse = false; 
           } else if (e.options[e.selectedIndex].value == 'player2') {
             gamepad[0].playerIndex = 1;
           } else {
             gamepad[0].playerIndex = null;
           }
-          // if player1 has been chosen to use this gamepad, then set mouse/keyboard to not used as the default 
-          // the users can override this, but that's their own look out.
-          $("#Player1mouse").attr("selected", "selected");
-          player1UsingMouse = false; 
         });
         
         document.getElementById('gamepad2User').addEventListener('change', function(event) {
@@ -1205,15 +1196,15 @@ var GF = function () {
           console.log("gamepad2User event, value ", e.options[e.selectedIndex].value);
           if (e.options[e.selectedIndex].value == 'player1') {
             gamepad[1].playerIndex = 0;
+            // if player1 has been chosen to use this gamepad, then set mouse/keyboard to not used as the default 
+            // the users can override this, but that's their own look out.
+            $("#Player1mouse").attr("selected", "selected");
+            player1UsingMouse = false; 
           } else if (e.options[e.selectedIndex].value == 'player2') {
             gamepad[1].playerIndex = 1;
           } else {
             gamepad[1].playerIndex = null;
           }
-          // if player1 has been chosen to use this gamepad, then set mouse/keyboard to not used as the default 
-          // the users can override this, but that's their own look out.
-          $("#Player1mouse").attr("selected", "selected");
-          player1UsingMouse = false; 
         });
         
         document.getElementById('g1horizontal').addEventListener('change', function(event) {
