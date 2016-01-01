@@ -95,7 +95,7 @@ var GF = function () {
     var PLOPSOUND_URL = 'http://mainline.i3s.unice.fr/mooc/plop.mp3';
     var PLOPSOUND = 0;
     //var explosionSound; // Sound of the tank exploding
-    var EXPLOSIONSOUND_URL = 'audio/explosion.mp3';
+    var EXPLOSIONSOUND_URL = 'https://raw.githubusercontent.com/robbiejackson/tank/master/audio/explosion.mp3';
     //var EXPLOSIONSOUND_URL = 'http://mainline.i3s.unice.fr/mooc/plop.mp3';
     var EXPLOSIONSOUND = 1; 
     // Sound of a shell being fired:
@@ -105,8 +105,9 @@ var GF = function () {
     var audioContext = window.AudioContext || window.webkitAudioContext;
     audio_ctx = new audioContext();
     
-    var TANK1_IMAGE_URL = "./images/T-34_top_view_vector-64px.svg.png";
-    var TANK2_IMAGE_URL = "https://raw.githubusercontent.com/robbiejackson/app1/master/app/assets/images/rails.png";
+    //var TANK1_IMAGE_URL = "./images/T-34_top_view_vector-64px.svg.png";
+    var TANK1_IMAGE_URL = "https://raw.githubusercontent.com/robbiejackson/tank/master/images/T-34_top_view_vector-64px.svg.png";
+    var TANK2_IMAGE_URL = "https://raw.githubusercontent.com/robbiejackson/tank/master/images/T-34blue_top_view_vector-64px.svg.png";
     //var TANK2_IMAGE_URL = "./images/T-34blue_top_view_vector-64px.svg.png";
     //var TANKIMAGE_URL = "https://upload.wikimedia.org/wikipedia/commons/thumb/7/76/T-34_top_view_vector.svg/64px-T-34_top_view_vector.svg.png";
     var tankImage = [];  // tank is 64 x 90 pixels, centre is (24, 35)
@@ -618,7 +619,7 @@ var GF = function () {
                 plopSound.play();
             }
             */
-            if (currentGameState == gameStates.gameRunning) {
+            if (currentGameState == gameStates.gameRunning && !ballArray[i].ballHitAt) {
                 if (ballTankCollision(tank[0].centreX, tank[0].centreY, tank[0].angle, tank[0].diagonal, ball.x, ball.y, ball.radius)) {
                   console.log("Player1 tank destroyed");
                   playSound(audioSound[EXPLOSIONSOUND]);
