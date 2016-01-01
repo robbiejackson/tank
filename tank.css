@@ -1,0 +1,21 @@
+canvas {
+      border: 1px solid black;
+}
+.round-button {
+    display:span;
+    width:30px;
+    height:30px;
+    border: 1px solid black;
+    border-radius: 50%;
+    color:black;
+    text-align:center;
+    text-decoration:none;
+    background: white;
+    box-shadow: 0 0 3px gray;
+    font-size:12px;
+    font-weight:normal;
+}
+
+.highlight {
+    background: yellow;
+}

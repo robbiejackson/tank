@@ -1,0 +1,110 @@
+<html lang="en">
+ <head>
+ <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script> 
+ <title>Tank</title>
+ <link rel="stylesheet" type="text/css" href="tank.css">
+ </head>
+ <body>
+   <canvas style="float:left;margin:30px" id="myCanvas" width="800" height="400" /></canvas>
+   <br>
+   <p><strong>Player1 &nbsp;&nbsp;&nbsp; Score&nbsp;&nbsp;&nbsp;<span id="score1"></span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+     Player2 &nbsp;&nbsp;&nbsp; Score&nbsp;&nbsp;&nbsp;<span id="score2"></span>&nbsp;&nbsp;&nbsp;
+     Level&nbsp;&nbsp;&nbsp;<span id="level"></span></strong></p>
+   <label for="startGame1">Press Start button for new game!</label>
+   <button id="startGame1" type="submit">Start One Player Game</button>
+   <button id="startGame2" type="submit">Start Two Player Game</button>
+   <p>--------------------------------------------------  Controls  ---------------------------------</p>
+   <label for="mouseUser">Mouse/Keyboard &nbsp;</label>
+   <select id="mouseUser">
+     <option value="player1">Player 1</option>
+     <option id="Player1mouse" value="notUsed">Not used</option>
+   </select>
+   <span> Move tank with arrow keys, move mouse to point cannon, left mouse button to fire</span>
+   <br>
+   <p>Press any button on gamepads to make them show up</p>
+   <label for="gamepad1User">Gamepad 1 &nbsp;</label>
+   <select id="gamepad1User">
+     <option value="notConnected">Not connected</option>
+     <option value="player1">Player 1</option>
+     <option value="player2">Player 2</option>
+     <option value="notUsed">Not used</option>
+   </select>
+   <label for="g1horizontal">Move left/right &nbsp;</label>
+   <select id="g1horizontal">
+     <option value="notConnected">N/A</option>
+   </select>
+   <label for="g1vertical">&nbsp; Move up/down &nbsp;</label>
+   <select id="g1vertical">
+     <option value="notConnected">N/A</option>
+   </select>
+   <label for="g1fire">&nbsp; Fire &nbsp;</label>
+   <select id="g1fire">
+     <option value="notConnected">N/A</option>
+   </select>  
+   <br>
+   <label for="g1rotateLeft">Rotate turret anticlockwise (left) &nbsp;</label>
+   <select id="g1rotateLeft">
+     <option value="notConnected">N/A</option>
+   </select>
+   <label for="g1rotateRight">&nbsp; Rotate turret clockwise (right) &nbsp;</label>
+   <select id="g1rotateRight">
+     <option value="notConnected">N/A</option>
+   </select>    
+   <br>
+   <div id="test1"></div>
+   <br>
+   <label for="gamepad2User">Gamepad 2 &nbsp;</label>
+   <select id="gamepad2User">
+     <option value="notConnected">Not connected</option>
+     <option value="player1">Player 1</option>
+     <option value="player2">Player 2</option>
+     <option value="notUsed">Not used</option>
+   </select>
+   <label for="g2horizontal">Move left/right &nbsp;</label>
+   <select id="g2horizontal">
+     <option value="notConnected">N/A</option>
+   </select>
+   <label for="g2vertical">&nbsp; Move up/down &nbsp;</label>
+   <select id="g2vertical">
+     <option value="notConnected">N/A</option>
+   </select>
+   <label for="g2fire">&nbsp; Fire &nbsp;</label>
+   <select id="g2fire">
+     <option value="notConnected">N/A</option>
+   </select>  
+   <br>
+   <label for="g2rotateLeft">Rotate turret anticlockwise (left) &nbsp;</label>
+   <select id="g2rotateLeft">
+     <option value="notConnected">N/A</option>
+   </select>
+   <label for="g2rotateRight">&nbsp; Rotate turret clockwise (right) &nbsp;</label>
+   <select id="g2rotateRight">
+     <option value="notConnected">N/A</option>
+   </select>    
+   <br>
+   <div id="test2"></div>
+   <br clear=left>
+   <p>---------------------------------------------- Configuration parameters -----------------------</p>
+   <form onsubmit="return false" oninput="numBalls.value = nballs.valueAsNumber">
+     <label for="nballs">Initial number of balls</label>
+     <input id="nballs" name="nballs" type="range" min="5" max="50" value="5" step="5"></input>
+     <output for="nballs" name="numBalls">5</output>
+   </form>
+   <form onsubmit="return false" oninput="speedBalls.value = sballs.valueAsNumber">
+     <label for="sballs">Initial average speed of balls</label>
+     <input id="sballs" name="sballs" type="range" min="100" max="250" value="150" step="5"></input>
+     <output for="sballs" name="speedBalls">150</output>
+   </form>
+   <form onsubmit="return false" oninput="tankSpeed.value = tspeed.valueAsNumber">
+     <label for="tspeed">Speed of tank</label>
+     <input id="tspeed" name="tspeed" type="range" min="100" max="1000" value="200" step="50"></input>
+     <output for="tspeed" name="tankSpeed">200</output>
+   </form>
+   <form onsubmit="return false" oninput="turretRotationSpeedOutput.value = turretRotationSpeed.valueAsNumber">
+     <label for="tspeed">Tank rotation speed</label>
+     <input id="turretRotationSpeed" name="turretRotationSpeed" type="range" min="5" max="100" value="20" step="5"></input>
+     <output for="turretRotationSpeed" name="turretRotationSpeedOutput">20</output>
+   </form>
+   <script src="tank.js"></script>
+ </body>
+</html>
