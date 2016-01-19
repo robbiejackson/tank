@@ -1,7 +1,14 @@
 window.onload = function init() {
+    openDataStore();
     var game = new GF();
     game.start();
 };
+
+// Variables for handling the storage of the gamepad configuration in the indexDB file
+var db;   // database handle
+var gamepad_config_records = [];
+var DEFAULT_H_AXIS = 0, DEFAULT_Y_AXIS = 1;
+var DEFAULT_FIRE_BUTTON = 0, DEFAULT_ROTATE_LEFT_BUTTON = 6, DEFAULT_ROTATE_RIGHT_BUTTON = 7; 
 
 var GF = function () {
     // Vars relative to the canvas
@@ -27,25 +34,27 @@ var GF = function () {
     
     // gamepad support
     gamepad = [{
+      id: "",
       connected: false,     // whether this gamepad is connected or not
       configured: false,    // if the config options have been presented
       playerIndex: null,    // player using this gamepad (player1 is index 0, player2 is index 1) or null if not being used
       navgamepad: null,     // the gamepad in navigator gamepads array
-      horizontal: 0,        // value of the button or axis
-      vertical: 1, 
-      fire: 0,
-      rotateLeft: 6,
-      rotateRight: 7
-    }, {
+      horizontal: DEFAULT_H_AXIS,        // value of the button or axis
+      vertical: DEFAULT_Y_AXIS, 
+      fire: DEFAULT_FIRE_BUTTON,
+      rotateLeft: DEFAULT_ROTATE_LEFT_BUTTON,
+      rotateRight: DEFAULT_ROTATE_RIGHT_BUTTON
+    }, {  
+      id: "",
       connected: false,                    
       configured: false,     
       playerIndex: null,      
       index: 0,                               
-      horizontal: 0,                                    
-      vertical: 1, 
-      fire: 0,
-      rotateLeft: 6,
-      rotateRight: 7
+      horizontal: DEFAULT_H_AXIS,    
+      vertical: DEFAULT_Y_AXIS, 
+      fire: DEFAULT_FIRE_BUTTON,
+      rotateLeft: DEFAULT_ROTATE_LEFT_BUTTON,
+      rotateRight: DEFAULT_ROTATE_RIGHT_BUTTON
     }];
     var numGamepads = 0;
     var redisplayGamepads = false;    // set if there's a gamepad connected or disconnected, to redo gamepad controls section of the web page
@@ -149,7 +158,8 @@ var GF = function () {
     var BALL_DYING_TIME = 100;
     var numInitialBalls = 0;
     var numBallsThisLevel = 0;
-    var aveSpeedBalls = 0;
+    var initialAveSpeedBalls = 0;    // set from config
+    var aveSpeedBalls = 0;           // this increases on each level
     var BALL_INCREASE_SPEED_FACTOR = 1.2;   // factor by which the ball speed increases in each successive level
     
     // array of shells
@@ -231,6 +241,7 @@ var GF = function () {
 
     }
     var mainLoop = function (time) {
+        var i; 
         //main function, called each frame 
         measureFPS(time);
 
@@ -295,6 +306,8 @@ var GF = function () {
                 break;
             case gameStates.gameRunning:
                 //mapGamepadInputStates(navgamepads);
+                var now = performance.now();
+                var shell;
                 if (player1UsingMouse && inputStates.mousePos) {
                   // this controls where the tank is pointing
                   // work out the angle of the tank - it's pointing towards the mouse 
@@ -316,23 +329,21 @@ var GF = function () {
                 }
                 if (player1UsingMouse && inputStates.mousedown) {   // fire a shell
                   //console.log("firing a shell");
-                  var now = performance.now(); 
                   if (now - tank[0].lastShellFired > tank[0].shellFiringDelay) {
                     //console.log("firing a shell");
-                    var shell = new Shell(0, tank[0].centreX, tank[0].centreY, tank[0].speedX, tank[0].speedY, tank[0].angle, tank[0].color);
+                    shell = new Shell(0, tank[0].centreX, tank[0].centreY, tank[0].speedX, tank[0].speedY, tank[0].angle, tank[0].color);
                     shellArray[numShells++] = shell;
                     tank[0].lastShellFired = now; 
                     playSound(audioSound[FIRESOUND]);
                   }
                 }
                 
-                for (var i = 0; i < numPlayers; i++) {
+                for (i = 0; i < numPlayers; i++) {
                   if (!gamepadInputStates[i].inUse) continue; 
                   if (gamepadInputStates[i].fire) {   // fire a shell
-                    var now = performance.now(); 
                     if (now - tank[i].lastShellFired > tank[i].shellFiringDelay) {
                       //console.log("Player ", i, " firing a shell");
-                      var shell = new Shell(i, tank[i].centreX, tank[i].centreY, tank[i].speedX, tank[i].speedY, tank[i].angle, tank[i].color);
+                      shell = new Shell(i, tank[i].centreX, tank[i].centreY, tank[i].speedX, tank[i].speedY, tank[i].angle, tank[i].color);
                       shellArray[numShells++] = shell;
                       tank[i].lastShellFired = now; 
                       playSound(audioSound[FIRESOUND]);
@@ -340,19 +351,19 @@ var GF = function () {
                   }
                 }
                 
-                for (var i = 0; i < numPlayers; i++) {
+                for (i = 0; i < numPlayers; i++) {
                   if (!gamepadInputStates[i].inUse) continue; 
                   if (gamepadInputStates[i].rotateRight) {
-                    tank[i].angle -= turretRotationSpeed / 360.0; 
+                    tank[i].angle += turretRotationSpeed / 360.0; 
                   }
                   if (gamepadInputStates[i].rotateLeft) {
-                    tank[i].angle += turretRotationSpeed / 360.0; 
+                    tank[i].angle -= turretRotationSpeed / 360.0; 
                   }
                 }
 
 
                 // draw the tank
-                for (var i = 0; i < numPlayers; i++) {
+                for (i = 0; i < numPlayers; i++) {
                   drawMyTank(i, tank[i].x, tank[i].y, tank[i].angle);
                 }
                 
@@ -408,12 +419,14 @@ var GF = function () {
                 
                 if (inputStates.newGame) {
                   gameStarted = true; 
+                  aveSpeedBalls = initialAveSpeedBalls;
                   createBalls(numInitialBalls);
                   numBallsThisLevel = numInitialBalls; 
                   tank[0].destroyed = false; 
                   tank[1].destroyed = false; 
                   currentGameState = gameStates.gameReady;
                   inputStates.newGame = false; 
+                  currentScore = [0, 0];
                 }
 
                 break;
@@ -495,6 +508,7 @@ var GF = function () {
     }
 
     function updateTankPosition(delta) {
+        var i; 
         tank[0].speedX = tank[0].speedY = 0;
         // check inputStates
         if (player1UsingMouse) {
@@ -534,7 +548,7 @@ var GF = function () {
             if (inputStates.mousePos) {
             }
         }
-        for (var i = 0; i < numPlayers; i++) {
+        for (i = 0; i < numPlayers; i++) {
           if (gamepadInputStates[i].inUse) {
             tank[i].speedX = tankSpeed * gamepadInputStates[i].horizontal; 
             tank[i].speedY = tankSpeed * gamepadInputStates[i].vertical; 
@@ -543,7 +557,7 @@ var GF = function () {
 
         // Compute the incX and inY in pixels depending
         // on the time elasped since last redraw
-        for (var i = 0; i < numPlayers; i++) {
+        for (i = 0; i < numPlayers; i++) {
           tank[i].x += calcDistanceToMove(delta, tank[i].speedX);
           tank[i].y += calcDistanceToMove(delta, tank[i].speedY);
           tank[i].centreX = tank[i].x + TANK_CENTRE_OFFSET_X;
@@ -832,14 +846,15 @@ var GF = function () {
             // 1) move the ball
             shell.move();
             
-            testShellCollisionWithBalls(shell);
+            testShellCollisionWithBalls(i);
             
             shell.draw();
         }
     }
     
-    function testShellCollisionWithBalls(shell) {
+    function testShellCollisionWithBalls(shellIndex) {
       // see if a shell has hit one or more of the balls
+        shell = shellArray[shellIndex]; 
         for (var i = 0; i < ballArray.length; i++) {
           if (!ballArray[i]) continue;   // ball already destroyed
           if (ballArray[i].ballHitAt) continue;   // ball already hit
@@ -866,6 +881,7 @@ var GF = function () {
               ball.ballHitAt = performance.now();
               ball.color = shell.color;
               playSound(audioSound[PLOPSOUND], 100);
+              shellArray[shellIndex] = null; 
           }
         }
     }
@@ -885,10 +901,11 @@ var GF = function () {
     }
 
     function updateGamepadConfig(navgamepads) {
+        var i, j;
       // sets up the html on the web page to enable the players to configure their gamepad buttons to use etc
       // this depends on how many buttons etc the connected gamepad supports 
-      //console.log("in updateGamepadConfig with ", navgamepads.length, " gamepads ", navgamepads);
-      for (var i=0; i < Math.min(navgamepads.length, 2); i++) {
+      console.log("in updateGamepadConfig with ", navgamepads.length, " gamepads ", navgamepads);
+      for (i=0; i < 2; i++) {
         var selector1 = '#gamepad' + (i+1) + 'User';
         var selector2 = 'select[id^=g' + (i+1) + ']';   // for selecting the <option>s tags for this gamepad
         if (navgamepads[i] === undefined || navgamepads[i] === null || !navgamepads[i].connected) {
@@ -905,34 +922,48 @@ var GF = function () {
           gamepad[i].configured = false;  */
         } else {
           if (gamepad[i].configured) continue;     // don't overwrite how this gamepad has been configured
-          $(selector1).html('<option value="notConnected">Not connected</option>' + '<option value="player1">Player 1</option>' +
-              '<option value="player2">Player 2</option>' + '<option value="notUsed" selected="selected">Not used</option>');
-          // allow configuration of each of the 5 controls for the gamepad: left/right and up/down use Axes, fire and rotate right / left use Buttons 
-          $('#g' + (i+1) + 'horizontal').html(gamepadAxisOptions(navgamepads[i].axes, 0));
-          $('#g' + (i+1) + 'vertical').html(gamepadAxisOptions(navgamepads[i].axes, 1));
-          $('#g' + (i+1) + 'rotateLeft').html(gamepadButtonOptions(navgamepads[i].buttons, 6));
-          $('#g' + (i+1) + 'rotateRight').html(gamepadButtonOptions(navgamepads[i].buttons, 7));
-          $('#g' + (i+1) + 'fire').html(gamepadButtonOptions(navgamepads[i].buttons, 0));
-          // set up the line of axes / buttons to allow the player to test his controls
-          // axes and buttons are displayed starting from B1, B2, etc although we use 0, 1, 2 internally
-          var htmlText = 'Test:&nbsp;&nbsp;Axes&nbsp;';
-          for (var j = 0; j < navgamepads[i].axes.length; j++) {   // assume axes start from 1 instead of 0 (like buttons)
-            htmlText += '<input type="button" id="g' + (i+1) + 'A' + j + '" class="round-button" value="A' + (j+1) + '" />';
-          }
-          htmlText += '&nbsp;&nbsp;Buttons&nbsp;';
-          for (var j = 0; j < navgamepads[i].buttons.length; j++) {  // buttons start from 1 instead of 0
-            htmlText += '<input type="button" id="g' + (i+1) + 'B' + j + '" class="round-button" value="B' + (j+1) + '" />';
-          }
-          $('#test'+(i+1)).html(htmlText);
-          // set up the other properties of this gamepad
+          // set up the properties of this gamepad
+          gamepad[i].id = navgamepads[i].id; 
           gamepad[i].configured = true;
           gamepad[i].connected = true;
           gamepad[i].navgamepad = navgamepads[i];
-          gamepad[i].horizontal = 0;
-          gamepad[i].vertical = 1;
-          gamepad[i].fire = 0; 
-          gamepad[i].rotateRight = 6;
-          gamepad[i].rotateLeft = 7;
+          var prevConfig = previousGamepadConfig(gamepad[i].id);
+          if (prevConfig) {
+              console.log ("found previous config for ", gamepad[i].id, prevConfig.h, prevConfig.v, prevConfig.fire, prevConfig.rleft, prevConfig.rright);
+              gamepad[i].horizontal = prevConfig.h; 
+              gamepad[i].vertical = prevConfig.v; 
+              gamepad[i].fire = prevConfig.fire; 
+              gamepad[i].rotateRight = prevConfig.rright; 
+              gamepad[i].rotateLeft = prevConfig.rleft; 
+          } else {
+              gamepad[i].horizontal = DEFAULT_H_AXIS;
+              gamepad[i].vertical = DEFAULT_Y_AXIS;
+              gamepad[i].fire = DEFAULT_FIRE_BUTTON; 
+              gamepad[i].rotateRight = DEFAULT_ROTATE_RIGHT_BUTTON;
+              gamepad[i].rotateLeft = DEFAULT_ROTATE_LEFT_BUTTON;
+          }
+          // now set up the html fields 
+          $(selector1).html('<option value="notConnected">Not connected</option>' + '<option value="player1">Player 1</option>' +
+              '<option value="player2">Player 2</option>' + '<option value="notUsed" selected="selected">Not used</option>');
+          // allow configuration of each of the 5 controls for the gamepad: left/right and up/down use Axes, fire and rotate right / left use Buttons 
+          // the defaults for these are the values in the gamepad fields - whether these have been restored from previous config, or set to the standard defaults
+          $('#g' + (i+1) + 'horizontal').html(gamepadAxisOptions(navgamepads[i].axes, gamepad[i].horizontal));
+          $('#g' + (i+1) + 'vertical').html(gamepadAxisOptions(navgamepads[i].axes, gamepad[i].vertical));
+          $('#g' + (i+1) + 'rotateLeft').html(gamepadButtonOptions(navgamepads[i].buttons, gamepad[i].rotateLeft));
+          $('#g' + (i+1) + 'rotateRight').html(gamepadButtonOptions(navgamepads[i].buttons, gamepad[i].rotateRight));
+          $('#g' + (i+1) + 'fire').html(gamepadButtonOptions(navgamepads[i].buttons, gamepad[i].fire));
+          // set up the line of axes / buttons to allow the player to test his controls
+          // axes and buttons are displayed starting from B1, B2, etc although we use 0, 1, 2 internally
+          var htmlText = 'Test:&nbsp;&nbsp;Axes&nbsp;';
+          for (j = 0; j < navgamepads[i].axes.length; j++) {   // assume axes start from 1 instead of 0 (like buttons)
+            htmlText += '<input type="button" id="g' + (i+1) + 'A' + j + '" class="round-button" value="A' + (j+1) + '" />';
+          }
+          htmlText += '&nbsp;&nbsp;Buttons&nbsp;';
+          for (j = 0; j < navgamepads[i].buttons.length; j++) {  // buttons start from 1 instead of 0
+            htmlText += '<input type="button" id="g' + (i+1) + 'B' + j + '" class="round-button" value="B' + (j+1) + '" />';
+          }
+          $('#test'+(i+1)).html(htmlText);
+
         }
       }
     }
@@ -941,7 +972,7 @@ var GF = function () {
       // prepares the html <option> tags for a gamepad button control
       var htmlText = '';
       var i;
-      for (var i=0; i < buttons.length; i++) {   // buttons go B1, B2, ... not from B0, although we use 0, 1, 2, .. internally
+      for (i=0; i < buttons.length; i++) {   // buttons go B1, B2, ... not from B0, although we use 0, 1, 2, .. internally
         htmlText += '<option value="B' + i + '"' + (i == defaultButton ? ' selected="selected"' : '') + '>Button ' + (i+1) + '</option>';
       }
       //console.log(htmlText);
@@ -952,7 +983,7 @@ var GF = function () {
       // prepares the html <option> tags for a gamepad axis control
       var htmlText = '';
       var i;
-      for (var i=0; i < axes.length; i++) {
+      for (i=0; i < axes.length; i++) {
         htmlText += '<option value="A' + i + '"' + (i == defaultAxis ? 'selected="selected"' : '') + '>Axis ' + (i+1) + '</option>';
       }
       //console.log(htmlText);
@@ -960,22 +991,23 @@ var GF = function () {
     }
 
     function highlightGamepadControls(navgamepads) {
+      var i, j;
       // this highlights on the web page the buttons and axes that the player is pressing
       // it's done by setting the CSS class of the appropriate element(s) to "highlight", giving a background yellow colour
       if (!navgamepads) return;
-      for (var i = 0; i < navgamepads.length; i++) {
+      for (i = 0; i < navgamepads.length; i++) {
         if (!navgamepads[i] || !navgamepads[i].connected) continue;
         // remove any previous highlighting on axes and buttons, and set any highlights from buttons/axes currently pressed
         // remove from all children under the element with id = test1 or test2 (depending on gamepad)
         // then set it on individual button/axes options via the id which is g1b0, g1b1, .. g1a0, g1a1,.., g2b0, g2b1, .. g2a0, ...
         $('#test'+(i+1)+' input').removeClass('highlight'); 
-        for (var j = 0; j < navgamepads[i].axes.length; j++) {
+        for (j = 0; j < navgamepads[i].axes.length; j++) {
           if (Math.abs(navgamepads[i].axes[j]) > 0.1) {
             //console.log("setting highlight on gamepad ", i+1, " for axis A", j);
             $('#g'+(i+1)+'A'+j).addClass('highlight');
           }
         }
-        for (var j = 0; j < navgamepads[i].buttons.length; j++) {
+        for (j = 0; j < navgamepads[i].buttons.length; j++) {
           if (navgamepads[i].buttons[j].pressed) {
             //console.log("setting highlight on gamepad ", i+1, " for button B", j);
             $('#g'+(i+1)+'B'+j).addClass('highlight');
@@ -1211,6 +1243,7 @@ var GF = function () {
           var e = document.getElementById('g1horizontal');
           var axis = e.options[e.selectedIndex].value;
           gamepad[0].horizontal = parseInt(axis[1]);
+          saveGamepadConfig(gamepad[0].id, gamepad[0].horizontal, gamepad[0].vertical, gamepad[0].fire, gamepad[0].rotateLeft, gamepad[0].rotateRight);
           //console.log("g1horizontal event, value ", gamepad[0].horizontal);
         });  
         
@@ -1218,55 +1251,63 @@ var GF = function () {
           var e = document.getElementById('g1vertical');
           var axis = e.options[e.selectedIndex].value;
           gamepad[0].vertical = parseInt(axis[1]);
+          saveGamepadConfig(gamepad[0].id, gamepad[0].horizontal, gamepad[0].vertical, gamepad[0].fire, gamepad[0].rotateLeft, gamepad[0].rotateRight);
         });  
         
         document.getElementById('g1fire').addEventListener('change', function(event) {
           var e = document.getElementById('g1fire');
           var button = e.options[e.selectedIndex].value;
           gamepad[0].fire = parseInt(button[1]);
+          saveGamepadConfig(gamepad[0].id, gamepad[0].horizontal, gamepad[0].vertical, gamepad[0].fire, gamepad[0].rotateLeft, gamepad[0].rotateRight);
         }); 
         
         document.getElementById('g1rotateLeft').addEventListener('change', function(event) {
           var e = document.getElementById('g1rotateLeft');
           var button = e.options[e.selectedIndex].value;
           gamepad[0].rotateLeft = parseInt(button[1]);
+          saveGamepadConfig(gamepad[0].id, gamepad[0].horizontal, gamepad[0].vertical, gamepad[0].fire, gamepad[0].rotateLeft, gamepad[0].rotateRight);
         });  
         
         document.getElementById('g1rotateRight').addEventListener('change', function(event) {
           var e = document.getElementById('g1rotateRight');
           var button = e.options[e.selectedIndex].value;
           gamepad[0].rotateRight = parseInt(button[1]);
+          saveGamepadConfig(gamepad[0].id, gamepad[0].horizontal, gamepad[0].vertical, gamepad[0].fire, gamepad[0].rotateLeft, gamepad[0].rotateRight);
         });  
         
         document.getElementById('g2horizontal').addEventListener('change', function(event) {
           var e = document.getElementById('g2horizontal');
           var axis = e.options[e.selectedIndex].value;
           gamepad[1].horizontal = parseInt(axis[1]);
-          //console.log("g1horizontal event, value ", gamepad[1].horizontal);
+          saveGamepadConfig(gamepad[1].id, gamepad[1].horizontal, gamepad[1].vertical, gamepad[1].fire, gamepad[1].rotateLeft, gamepad[1].rotateRight);
         });  
         
         document.getElementById('g2vertical').addEventListener('change', function(event) {
           var e = document.getElementById('g2vertical');
           var axis = e.options[e.selectedIndex].value;
           gamepad[1].vertical = parseInt(axis[1]);
+          saveGamepadConfig(gamepad[1].id, gamepad[1].horizontal, gamepad[1].vertical, gamepad[1].fire, gamepad[1].rotateLeft, gamepad[1].rotateRight);
         });  
         
         document.getElementById('g2fire').addEventListener('change', function(event) {
           var e = document.getElementById('g2fire');
           var button = e.options[e.selectedIndex].value;
           gamepad[1].fire = parseInt(button[1]);
+          saveGamepadConfig(gamepad[1].id, gamepad[1].horizontal, gamepad[1].vertical, gamepad[1].fire, gamepad[1].rotateLeft, gamepad[1].rotateRight);
         }); 
         
         document.getElementById('g2rotateLeft').addEventListener('change', function(event) {
           var e = document.getElementById('g2rotateLeft');
           var button = e.options[e.selectedIndex].value;
           gamepad[1].rotateLeft = parseInt(button[1]);
+          saveGamepadConfig(gamepad[1].id, gamepad[1].horizontal, gamepad[1].vertical, gamepad[1].fire, gamepad[1].rotateLeft, gamepad[1].rotateRight);
         });  
         
         document.getElementById('g2rotateRight').addEventListener('change', function(event) {
           var e = document.getElementById('g2rotateRight');
           var button = e.options[e.selectedIndex].value;
           gamepad[1].rotateRight = parseInt(button[1]);
+          saveGamepadConfig(gamepad[1].id, gamepad[1].horizontal, gamepad[1].vertical, gamepad[1].fire, gamepad[1].rotateLeft, gamepad[1].rotateRight);
         });  
         
 
@@ -1278,7 +1319,8 @@ var GF = function () {
             console.log("number of initial balls changed to ", numInitialBalls);
         });
         
-        aveSpeedBalls = parseInt(document.getElementById('sballs').value);
+        initialAveSpeedBalls = parseInt(document.getElementById('sballs').value);
+        aveSpeedBalls = initialAveSpeedBalls;
         console.log("average speed of initial balls set to ", aveSpeedBalls);
         document.getElementById('sballs').addEventListener('change', function() { 
             aveSpeedBalls = parseInt(document.getElementById('sballs').value);
@@ -1313,4 +1355,133 @@ var GF = function () {
     };
 };
 
+// ----------------------------------------------------------------------------------
+// ------------- indexDB routines
+// ----------------------------------------------------------------------------------
 
+function openDataStore() {
+  
+    if (!window.indexedDB) {
+        window.alert("Your browser doesn't support a stable version of IndexedDB. Such and such feature will not be available.");
+    }
+      
+    var dbName = "GamepadConfig";
+     
+    var request = indexedDB.open(dbName, 1);
+     
+    request.onerror = function(event) {
+      // Handle errors.
+      console.log("request.onerror errcode=" + event.target.error.name);
+    };
+    
+    request.onupgradeneeded = function(event) {
+      console.log("request.onupgradeneeded, we are creating a new version of the dataBase");
+      db = event.target.result;
+     
+      var objectStore = db.createObjectStore("gamepads", { keyPath: "id" });
+
+    };
+      
+    request.onsuccess = function(event) {
+      console.log("request.onsuccess, database opened ok");
+      db = event.target.result;  
+      retrieveRecords();
+    };
+}
+
+function retrieveRecords() {   // retrieve configurations of gamepads saved from previous sessions
+    if(db === null) {
+      alert('Database not available');
+      return;
+    }
+    
+    console.log("in retrieveRecords");
+    var nRecs = 0;
+    gamepad_config_records = [];
+    var objectStore = db.transaction("gamepads", "readonly").objectStore("gamepads");
+
+    objectStore.openCursor().onsuccess = function(event) {
+        var cursor = event.target.result;
+        if (cursor) {
+            console.log("found a gamepad record, key: ", cursor.key, " value: ", cursor.value);
+            gamepad_config_records[nRecs++] = { id: cursor.key, h: cursor.value.h, v: cursor.value.v , fire: cursor.value.fire, 
+                    rleft: cursor.value.rleft, rright: cursor.value.rright };
+            cursor.continue();
+        } else {
+            console.log(gamepad_config_records.length, " gamepad records found");
+        }
+    };
+}
+
+function previousGamepadConfig(id) {
+    for (var i = 0; i < gamepad_config_records.length; i++) {
+        if (id == gamepad_config_records[i].id) {
+            return gamepad_config_records[i];
+        }
+    }
+    return null;
+}
+
+function saveGamepadConfig(id, h, v, fire, rleft, rright) {
+    console.log("In saveGamepadConfig for ", id, h, v, fire, rleft, rright);
+    //  need to check if this gamepad id already has a record - if so, we'll update it, otherwise we'll create a new one
+    for (var i = 0; i < gamepad_config_records.length; i++) {
+        if (id == gamepad_config_records[i].id) {
+            gamepad_config_records[i].h = h; 
+            gamepad_config_records[i].v = v; 
+            gamepad_config_records[i].fire = fire; 
+            gamepad_config_records[i].rleft = rleft; 
+            gamepad_config_records[i].rright = rright; 
+            updateRecord(gamepad_config_records[i]);
+            return;
+        }
+    }
+    // record not found, so we need to add a new one.
+    var recnum = gamepad_config_records.length;
+    gamepad_config_records[recnum] = { id: id, h: h, v: v, fire: fire, rleft: rleft, rright: rright };  
+    addNewRecord(gamepad_config_records[recnum]);
+}
+
+function updateRecord(recordToUpdate) {
+    
+    if(db === null) return;
+    
+    console.log("in updateRecord with ", recordToUpdate);
+    
+    var transaction = db.transaction(["gamepads"], "readwrite");
+    
+    transaction.oncomplete = function(event) {
+        console.log("Record updated ok!");
+    };
+ 
+    transaction.onerror = function(event) {
+        console.log("transaction.onerror errcode=" + event.target.error.name);
+    };
+ 
+    var objectStore = transaction.objectStore("gamepads");
+    
+    var request = objectStore.put(recordToUpdate);
+    
+    request.onsuccess = function(event) {
+        console.log("Record updated");
+    };
+    request.onerror = function(event) {
+        console.log("request.onerror, could not update record, errcode = " + event.target.error.name);
+    };
+}
+
+function addNewRecord(recordToAdd) {
+    if(db === null) return;
+    
+    console.log("in addNewRecord with record: ", recordToAdd);
+    
+    var objectStore = db.transaction("gamepads", "readwrite").objectStore("gamepads");
+    
+    objectStore.onsuccess = function(event) {
+        console.log("New record saved to database");
+    };
+    objectStore.onerror = function(event) {
+        console.log("Add new record error: ", event.error);
+    };
+    objectStore.add(recordToAdd);
+}
